@@ -9,6 +9,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
 
+import com.gmail.foy.maxach.services.MessageService;
 import org.jsmpp.InvalidResponseException;
 import org.jsmpp.PDUException;
 import org.jsmpp.PDUStringException;
@@ -72,7 +73,7 @@ public class SMPPServerSimulator extends ServerResponseDeliveryAdapter implement
     private static final String BROADCASTSM_NOT_IMPLEMENTED = "broadcast_sm not implemented";
     private static final String CANCELBROADCASTSM_NOT_IMPLEMENTED = "cancel_broadcast_sm not implemented";
     private static final String QUERYBROADCASTSM_NOT_IMPLEMENTED = "query_broadcast_sm not implemented";
-    private static final Integer DEFAULT_PORT = 8056;
+    private static final Integer DEFAULT_PORT = 8057;
     private static final String DEFAULT_SYSID = "j";
     private static final String DEFAULT_PASSWORD = "jpwd";
     private static final String SMSC_SYSTEMID = "sys";
@@ -83,6 +84,8 @@ public class SMPPServerSimulator extends ServerResponseDeliveryAdapter implement
     private final int port;
     private final String systemId;
     private final String password;
+    private static final MessageService messageService = new MessageService();
+
 
     public SMPPServerSimulator(boolean useSsl, int port, String systemId, String password) {
         this.useSsl = useSsl;
@@ -90,6 +93,7 @@ public class SMPPServerSimulator extends ServerResponseDeliveryAdapter implement
         this.systemId = systemId;
         this.password = password;
     }
+
 
     @Override
     public void run() {
@@ -138,17 +142,23 @@ public class SMPPServerSimulator extends ServerResponseDeliveryAdapter implement
         }
     }
 
+
     @Override
     public QuerySmResult onAcceptQuerySm(QuerySm querySm, SMPPServerSession source) throws ProcessRequestException {
         log.info("QuerySm not implemented");
         throw new ProcessRequestException(QUERYSM_NOT_IMPLEMENTED, SMPPConstant.STAT_ESME_RINVCMDID);
     }
 
+
     @Override
     public SubmitSmResult onAcceptSubmitSm(SubmitSm submitSm, SMPPServerSession source) throws ProcessRequestException {
         MessageId messageId = messageIDGenerator.newMessageId();
-        log.info("Receiving submit_sm '{}', and return message id {}", new String(submitSm.getShortMessage()), messageId);
-        System.out.println("Message: " + new String(submitSm.getShortMessage()));
+        String message = new String(submitSm.getShortMessage());
+
+        log.info("Receiving submit_sm '{}', and return message id {}", message, messageId);
+        System.out.println("Message: " + message);
+        messageService.create(message);
+
         if (SMSCDeliveryReceipt.FAILURE.containedIn(submitSm.getRegisteredDelivery()) || SMSCDeliveryReceipt.SUCCESS_FAILURE.containedIn(submitSm.getRegisteredDelivery())) {
             execServiceDelReceipt.execute(new DeliveryReceiptTask(source, submitSm, messageId));
         }
